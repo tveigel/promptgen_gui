@@ -1,7 +1,8 @@
 # PromptGen GUI
+**WORK IN PROGRESS**
 
-A simple but powerful desktop tool to select project files, generate a context-rich prompt including a directory tree, and copy it to your clipboard for use with LLMs like GPT-4, Claude, or Llama.
-
+A simple but powerful desktop tool in the good old tkinter style. It allows you to easily select and deselect files form your repository to copy them to your clipboard, including the directory tree.
+Attach the copied contents to the prompt you want to send your LLM of choice to quickly provide it with all necessary context.
 
 
 
@@ -43,9 +44,7 @@ You must have Python 3.8+ installed and available on your system's PATH.
 4.  **Generate & Copy:** Click the "Copy Selected to Clipboard" button.
 5.  **Paste:** Paste the result into your favorite LLM chat interface.
 
-## For Developers
 
-The `assets/resize.py` script is a small utility for resizing the checkbox icons. It is not needed for the application to run.
 
 ## License
 
