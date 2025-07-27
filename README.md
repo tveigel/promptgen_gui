@@ -4,7 +4,7 @@
 A simple but powerful desktop tool in the good old tkinter style. It allows you to easily select and deselect files form your repository to copy them to your clipboard, including the directory tree.
 Attach the copied contents to the prompt you want to send your LLM of choice to quickly provide it with all necessary context.
 
-
+[![Example Screenshot](example.jpg)]
 
 ## Features
 
