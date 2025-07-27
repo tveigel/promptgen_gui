@@ -5,6 +5,7 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext, font as tkFont
 import os
 import threading
 import sys
+import re # Import the regular expression module
 
 try:
     from ttkthemes import ThemedTk
@@ -22,7 +23,6 @@ except ImportError as e:
 
 class PromptgenGUI:
     def __init__(self, root):
-        # ... (init code is unchanged) ...
         self.root = root
         self.root.title("PromptGen GUI")
         self.root.geometry("1000x750")
@@ -31,10 +31,12 @@ class PromptgenGUI:
         self.load_checkbox_images()
 
         self.current_dir = os.getcwd()
-
         self.checked_state = {}
         self.persistent_checked_state = {}
         self.tree_items = {}
+
+        # --- NEW: Set to store allowed special tokens for a single operation ---
+        self.allowed_special_tokens = set()
 
         self.main_frame = ttk.Frame(root, padding="10")
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -64,7 +66,6 @@ class PromptgenGUI:
                 style.theme_use('clam')
             except tk.TclError:
                 style.theme_use('default')
-
         self.default_font = tkFont.nametofont("TkDefaultFont")
         self.text_font = tkFont.nametofont("TkTextFont")
         try:
@@ -79,7 +80,6 @@ class PromptgenGUI:
                 self.text_font.configure(family="DejaVu Sans Mono", size=10)
         except tk.TclError:
             print("Warning: Could not set preferred system fonts. Using Tk defaults.")
-
         style.configure('.', font=self.default_font)
         style.configure('TButton', font=self.default_font, padding=5)
         style.configure('Treeview', font=self.default_font, rowheight=int(self.default_font.metrics()['linespace'] * 1.5))
@@ -97,7 +97,7 @@ class PromptgenGUI:
             self.img_checked = None
             self.img_unchecked = None
             print(f"Warning: Could not load checkbox images: {e}. Using text fallback '[x]' / '[ ]'.")
-            
+
     def setup_left_pane(self):
         self.dir_frame = ttk.LabelFrame(self.left_pane, text="Project Directory")
         self.dir_frame.pack(fill=tk.X, padx=5, pady=(5, 10))
@@ -107,29 +107,24 @@ class PromptgenGUI:
         self.dir_button = ttk.Button(self.dir_frame, text="Browse...", command=self.select_directory)
         self.dir_button.pack(side=tk.RIGHT, padx=(2, 5), pady=5)
 
-        # --- MODIFIED: Renamed to "Settings & Filters" and added Max Tokens field ---
         self.settings_frame = ttk.LabelFrame(self.left_pane, text="Settings & Filters")
         self.settings_frame.pack(fill=tk.X, padx=5, pady=5)
-
         ttk.Label(self.settings_frame, text="Max Tokens:").grid(row=0, column=0, padx=5, pady=(5,3), sticky='w')
         self.max_tokens_var = tk.StringVar(value="150000")
         self.max_tokens_entry = ttk.Entry(self.settings_frame, textvariable=self.max_tokens_var, width=15)
         self.max_tokens_entry.grid(row=0, column=1, padx=5, pady=(5,3), sticky='w')
-        
         ttk.Label(self.settings_frame, text="Include Exts (csv):").grid(row=1, column=0, padx=5, pady=3, sticky='w')
-        self.include_ext_var = tk.StringVar(value="py,ts,js,jsx,tsx,vue,html,css,scss,md,json,yaml,sh,rb,go,rs,java,kt,c,cpp,h,cs")
+        self.include_ext_var = tk.StringVar(value="py,ts,js,jsx,tsx,vue,html,css,scss,md,json,yaml,sh,rb,go,rs,java,kt,c,cpp,h,cs,txt")
         self.include_ext_entry = ttk.Entry(self.settings_frame, textvariable=self.include_ext_var)
         self.include_ext_entry.grid(row=1, column=1, padx=5, pady=3, sticky='ew')
-
         ttk.Label(self.settings_frame, text="Exclude Paths (csv):").grid(row=2, column=0, padx=5, pady=3, sticky='w')
-        self.exclude_paths_var = tk.StringVar(value="node_modules,.git,.venv,dist,build,__pycache__,*.log,*.tmp,*.bak,*.swp")
+        # --- MODIFIED: Added 'env' to the default exclusion list ---
+        self.exclude_paths_var = tk.StringVar(value="node_modules,.git,venv,env,dist,build,__pycache__,*.log,*.tmp,*.bak,*.swp")
         self.exclude_paths_entry = ttk.Entry(self.settings_frame, textvariable=self.exclude_paths_var)
         self.exclude_paths_entry.grid(row=2, column=1, padx=5, pady=3, sticky='ew')
-
         self.refresh_button = ttk.Button(self.settings_frame, text="Apply Filters & Refresh Tree", command=self.populate_treeview)
         self.refresh_button.grid(row=3, column=0, columnspan=2, pady=(8, 5))
         self.settings_frame.columnconfigure(1, weight=1)
-        # --- END OF MODIFICATION ---
         
         self.tree_frame = ttk.LabelFrame(self.left_pane, text="Select Files/Folders")
         self.tree_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(10, 5))
@@ -140,66 +135,110 @@ class PromptgenGUI:
         self.tree.configure(yscrollcommand=self.tree_scroll_y.set)
         self.tree.bind("<Button-1>", self.on_tree_click, add='+')
 
-    def run_copy_process(self):
+    # --- MODIFIED: Added is_retry flag to handle state correctly ---
+    def run_copy_process(self, is_retry=False):
         if not tiktoken_available:
-            messagebox.showerror("Missing Dependency", "Cannot proceed: tiktoken is not installed.\nPlease run 'pip install tiktoken' and restart.")
+            messagebox.showerror("Missing Dependency", "Cannot proceed: tiktoken is not installed.")
             return
 
-        # --- MODIFIED: Read and validate max_tokens from GUI ---
+        # If this is a new job (not a retry), clear the previously allowed tokens
+        if not is_retry:
+            self.allowed_special_tokens.clear()
+
         try:
             max_tokens_limit = int(self.max_tokens_var.get())
-            if max_tokens_limit <= 0:
-                raise ValueError
+            if max_tokens_limit <= 0: raise ValueError
         except ValueError:
             messagebox.showerror("Invalid Input", "Max Tokens must be a positive number.")
             return
-        # --- END OF MODIFICATION ---
 
         selected_files = self.get_selected_file_paths()
-        if not selected_files:
+        if not selected_files and not is_retry:
             messagebox.showwarning("No Selection", "No files are currently selected.")
             return
 
-        self.clear_summary()
-        self.log_message("Starting file processing...")
+        if not is_retry:
+            self.clear_summary()
+            self.log_message("Starting file processing...")
+        
         self._toggle_buttons(tk.DISABLED)
 
-        # Pass the validated max_tokens_limit to the thread
+        # Pass the current set of allowed tokens to the thread
         thread = threading.Thread(
             target=self._copy_thread_func,
-            args=(self.current_dir, selected_files, *self.get_filter_settings(), max_tokens_limit),
+            args=(self.current_dir, selected_files, *self.get_filter_settings(), max_tokens_limit, self.allowed_special_tokens),
             daemon=True
         )
         thread.start()
 
-    # --- MODIFIED: Accept new max_tokens argument ---
-    def _copy_thread_func(self, root_dir, selected_paths, include_exts, exclude_paths, max_tokens):
+    # --- MODIFIED: Thread function now catches the specific ValueError ---
+    def _copy_thread_func(self, root_dir, selected_paths, include_exts, exclude_paths, max_tokens, allowed_special):
         try:
             _, summary_message = core.generate_prompt_data(
-                root_dir, selected_paths, include_exts, exclude_paths, max_tokens
+                root_dir, selected_paths, include_exts, exclude_paths, max_tokens, allowed_special
             )
             self.root.after(0, self._update_gui_post_copy, summary_message)
+        except ValueError as e:
+            # Check if this is the special token error we're looking for
+            if "disallowed special token" in str(e):
+                # Extract the token using regex
+                match = re.search(r"'(<\|.*?\|>)'", str(e))
+                if match:
+                    token = match.group(1)
+                    # Schedule the GUI dialog from the main thread
+                    self.root.after(0, self._handle_special_token_error, token)
+                    return # Stop this thread, the GUI will handle the retry
+            # If it's a different ValueError, treat it as a generic error
+            self._handle_generic_error(e)
         except Exception as e:
-            import traceback
-            error_msg = f"An unexpected error occurred during processing: {e}\n{traceback.format_exc()}"
-            self.root.after(0, self._update_gui_post_copy, error_msg, True)
+            # Handle any other unexpected errors
+            self._handle_generic_error(e)
 
-    # ... (The rest of the file is unchanged) ...
+    # --- NEW: Method to handle generic errors from the thread ---
+    def _handle_generic_error(self, e):
+        import traceback
+        error_msg = f"An unexpected error occurred during processing: {e}\n{traceback.format_exc()}"
+        self.root.after(0, self._update_gui_post_copy, error_msg, True)
+
+    # --- NEW: Method to show a dialog and handle retries for special tokens ---
+    def _handle_special_token_error(self, token):
+        msg = (
+            f"A file contains the special token '{token}' which is disallowed by default.\n\n"
+            "This can sometimes happen in files inside virtual environments or package sources.\n\n"
+            "Do you want to allow this token and retry processing?"
+        )
+        if messagebox.askyesno("Special Token Found", msg):
+            self.log_message(f"User allowed special token '{token}'. Retrying...", is_error=False)
+            self.allowed_special_tokens.add(token)
+            # Call run_copy_process again, marking it as a retry
+            self.run_copy_process(is_retry=True)
+        else:
+            self.log_message(f"Operation cancelled by user due to special token '{token}'.", is_error=True)
+            self._toggle_buttons(tk.NORMAL)
+
+    def _update_gui_post_copy(self, summary_message, is_error=False):
+        # ... (unchanged) ...
+        self.log_message("--- Processing Complete ---", is_error)
+        self.log_message(summary_message, is_error)
+        self._toggle_buttons(tk.NORMAL)
+
+    def _toggle_buttons(self, state):
+        # ... (unchanged) ...
+        self.refresh_button.config(state=state)
+        if tiktoken_available: self.copy_button.config(state=state)
+        
+    # ... (all other methods are unchanged) ...
     def setup_right_pane(self):
         style = ttk.Style()
         try:
             bold_font = (self.default_font.actual('family'), int(self.default_font.actual('size') * 1.1), 'bold')
             style.configure('Accent.TButton', font=bold_font)
-        except Exception:
-            pass # Font configuration can fail, proceed anyway
+        except Exception: pass
         self.copy_button = ttk.Button(self.right_pane, text="Copy Selected to Clipboard", command=self.run_copy_process, style='Accent.TButton')
         self.copy_button.pack(pady=(10, 15), padx=10, fill=tk.X)
-
         self.summary_frame = ttk.LabelFrame(self.right_pane, text="Summary & Log")
         self.summary_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.summary_text = scrolledtext.ScrolledText(
-            self.summary_frame, wrap=tk.WORD, relief=tk.SUNKEN, bd=1, padx=5, pady=5, font=self.text_font
-        )
+        self.summary_text = scrolledtext.ScrolledText(self.summary_frame, wrap=tk.WORD, relief=tk.SUNKEN, bd=1, padx=5, pady=5, font=self.text_font)
         self.summary_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.summary_text.configure(state='disabled')
 
@@ -292,13 +331,3 @@ class PromptgenGUI:
 
     def get_selected_file_paths(self):
         return [self.tree_items[iid][0] for iid in self.tree_items if self.checked_state.get(iid) and self.tree_items[iid][1] == 'file']
-
-    def _update_gui_post_copy(self, summary_message, is_error=False):
-        self.log_message("--- Processing Complete ---", is_error)
-        self.log_message(summary_message, is_error)
-        self._toggle_buttons(tk.NORMAL)
-
-    def _toggle_buttons(self, state):
-        self.refresh_button.config(state=state)
-        if tiktoken_available:
-            self.copy_button.config(state=state)
