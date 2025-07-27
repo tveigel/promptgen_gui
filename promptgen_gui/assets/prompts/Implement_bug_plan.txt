@@ -1,0 +1,21 @@
+<Task> Please implement the complete, clean solution to this bug </Task> 
+
+ <Instructions>   
+* make sure to not break existing functionalities    
+* Always provide COMPLETE code files or functions for me to copy paste into my project as drop in replacement   
+</Instructions>   
+
+<bug description>
+
+</bug description>
+
+<bug analysis>
+(attached)
+
+</bug analysis>
+
+
+Attached you find the relevant parts of my Code. In the dir tree you can see the complete structure of the project.
+I left out the irrelevant files and folders to make it easier for you to read. If you need any other files, just ask me and I will provide them to you.
+
+#Code:

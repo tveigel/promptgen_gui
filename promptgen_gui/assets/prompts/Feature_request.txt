@@ -1,0 +1,20 @@
+<Task>
+Rewrite the feature request in a more technical way, and come up with a implementation plan Do NOT write any code.
+</Task>
+
+<Instructions>
+* Understand the request and do a thorough requirements analysis
+* Translate it into more technical software terms to be precise.
+* Assess which files have to be touched to fix this
+* Make sure to consider clean code principles and best practices so that the code is maintainable and easy to understand
+* Write a detailed Request and instructions. The plan shall be so concise, you could give it to a junior dev and he will be able to implement it. The plan shall also include what files are relevant in what step.
+</Instructions>
+
+<Feature request>
+
+</Feature request>
+
+Attached you find the relevant parts of my Code. In the dir tree you can see the complete structure of the project.
+I left out the irrelevant files and folders to make it easier for you to read. If you need any other files, just ask me and I will provide them to you.
+
+# Code:

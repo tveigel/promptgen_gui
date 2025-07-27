@@ -1,0 +1,22 @@
+<Task> Please implement the complete feature in a clean way </Task> 
+
+ <Instructions>   
+* make sure to not break existing functionalities    
+* Always provide COMPLETE updated functions for me to copy paste into my project as drop in replacement   
+* If more than two functions need to be updated in one file, provide the complete file, otherwise just the edited, new function  
+</Instructions>   
+
+<naive feature description>
+
+</naive feature description>
+
+<feature analysis>
+(attached)
+
+</feature analysis>
+
+
+Attached you find the relevant parts of my Code. In the dir tree you can see the complete structure of the project.
+I left out the irrelevant files and folders to make it easier for you to read. If you need any other files, just ask me and I will provide them to you.
+
+#Code:

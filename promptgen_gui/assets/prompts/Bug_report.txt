@@ -1,0 +1,25 @@
+<Task>
+Identify the root cause of the problem and suggest a solution WITHOUT writing code
+</Task>
+
+<Instructions>
+- Review the code and analyze the dataflow
+- Identify all files that are related and relevant to the problem
+- come up with a clever fixing strategy without breaking anything
+- Make sure to consider clean code principles and best practices so that the code is maintainable and easy to understand
+- provide detailed fixing instructions to a developer, also including what files are relevant
+
+</Instructions>
+
+
+<Bug description>
+
+</Bug description>
+
+
+Attached you find the relevant parts of my Code. In the dir tree you can see the complete structure of the project.
+I left out the irrelevant files and folders to make it easier for you to read. If you need any other files, just ask me and I will provide them to you.
+
+# Code:
+
+
