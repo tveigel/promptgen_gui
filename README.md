@@ -4,7 +4,7 @@
 A simple but powerful desktop tool in the good old tkinter style. It allows you to easily select and deselect files form your repository to copy them to your clipboard, including the directory tree.
 Attach the copied contents to the prompt you want to send your LLM of choice to quickly provide it with all necessary context.
 
-[![Example Screenshot](example.jpg)]
+![Example Screenshot](example.jpg)]
 
 ## Features
 
@@ -27,7 +27,7 @@ You must have Python 3.8+ installed and available on your system's PATH.
     ```
 
 2.  **Run the application:**
-    -   **On Windows:** Double-click the `run.bat` file.
+    -   **On Windows:** Double-click the `run.bat` file. Note, when you start the programm for the very first time it will take a minute to set up the environment.
     -   **On macOS/Linux:** Make the script executable first, then run it.
         ```bash
         chmod +x run.sh
